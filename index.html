@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>User Activation Test: Cross-Origin</title>
+  <title>User Activation Test: Cross-Origin Redirect</title>
   <style>
     * { box-sizing: border-box; }
     body {
@@ -23,20 +23,22 @@
     }
     .origin-info {
       text-align: center;
-      background: #2d1b4e;
-      border: 1px solid #e64980;
+      background: #0d1b2a;
+      border: 1px solid #0f3460;
       border-radius: 8px;
-      padding: 12px;
+      padding: 15px;
       margin-bottom: 25px;
       font-size: 12px;
     }
+    .origin-info div { margin-bottom: 8px; }
     .origin-info strong { color: #e64980; }
     .origin-info code {
-      background: #0d1b2a;
+      background: #1a1a2e;
       padding: 2px 6px;
       border-radius: 4px;
       color: #00d4ff;
     }
+    .origin-info .arrow { color: #51cf66; font-weight: bold; }
     .container {
       display: flex;
       gap: 20px;
@@ -73,10 +75,12 @@
       padding: 10px;
       border-radius: 6px;
     }
+    .url-info .cross-origin { color: #ff6b6b; font-weight: bold; }
+    .url-info .same-origin { color: #51cf66; }
     .iframe-wrapper {
       position: relative;
       width: 100%;
-      height: 420px;
+      height: 450px;
       background: #000;
       border-radius: 8px;
       overflow: hidden;
@@ -158,35 +162,59 @@
       margin-bottom: 15px;
     }
     .external-controls .section-label { color: #e64980; }
+    .note {
+      background: #1a3a1a;
+      border: 1px solid #51cf66;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 15px;
+      font-size: 12px;
+      color: #51cf66;
+    }
   </style>
 </head>
 <body>
-  <h1>User Activation Test: Cross-Origin</h1>
+  <h1>User Activation Test: Cross-Origin Redirect</h1>
   <p class="description">
-    Тест передачи User Activation через postMessage в cross-origin iframe<br>
-    <strong>Розовые кнопки</strong> — СНАРУЖИ iframe (жест НЕ должен передаваться в cross-origin)
+    Тест показывает, как cross-origin редирект влияет на User Activation в iframe
   </p>
 
   <div class="origin-info">
-    <strong>Родитель:</strong> <code id="parent-origin"></code><br>
-    <strong>iframe:</strong> <code>s3.mds.yandex.net</code> (cross-origin)
+    <div><strong>Родительская страница:</strong> <code id="parent-origin"></code></div>
+    <div>
+      <strong>С редиректом:</strong>
+      <code id="redirect-origin"></code>
+      <span class="arrow">→</span>
+      <code>s3.mds.yandex.net</code>
+      <span class="cross-origin">(CROSS-ORIGIN!)</span>
+    </div>
+    <div>
+      <strong>Без редиректа:</strong>
+      <code>s3.mds.yandex.net</code>
+      <span class="same-origin">(напрямую)</span>
+    </div>
   </div>
 
   <div class="container">
     <div class="panel redirect">
-      <h2><span class="status-dot"></span> С редиректом</h2>
+      <h2><span class="status-dot"></span> С cross-origin редиректом</h2>
       <div class="url-info">
-        <strong>src:</strong> redirect.html → player.html?mode=redirect
+        <strong>src:</strong> <span id="redirect-url"></span><br>
+        <span class="cross-origin">→ CROSS-ORIGIN редирект на s3.mds.yandex.net</span>
       </div>
 
-      <div class="section-label">Управление iframe</div>
+      <div class="note">
+        ⚠️ Cross-origin редирект должен сбросить User Activation!
+      </div>
+
+      <div class="section-label">Управление</div>
       <div class="controls">
         <button class="btn-load" onclick="loadIframe('redirect')">Загрузить iframe</button>
         <button class="btn-clear" onclick="clearLog('redirect')">Очистить лог</button>
       </div>
 
       <div class="external-controls">
-        <div class="section-label">Кнопка СНАРУЖИ iframe (cross-origin postMessage)</div>
+        <div class="section-label">Кнопка СНАРУЖИ iframe</div>
         <div class="controls">
           <button class="btn-external-unmute" onclick="sendUnmute('redirect')">UNMUTE + Play</button>
         </div>
@@ -201,17 +229,18 @@
     <div class="panel direct">
       <h2><span class="status-dot"></span> Без редиректа</h2>
       <div class="url-info">
-        <strong>src:</strong> player.html?mode=direct (напрямую)
+        <strong>src:</strong> s3.mds.yandex.net/player.html<br>
+        <span class="same-origin">Загрузка напрямую (без редиректа)</span>
       </div>
 
-      <div class="section-label">Управление iframe</div>
+      <div class="section-label">Управление</div>
       <div class="controls">
         <button class="btn-load" onclick="loadIframe('direct')">Загрузить iframe</button>
         <button class="btn-clear" onclick="clearLog('direct')">Очистить лог</button>
       </div>
 
       <div class="external-controls">
-        <div class="section-label">Кнопка СНАРУЖИ iframe (cross-origin postMessage)</div>
+        <div class="section-label">Кнопка СНАРУЖИ iframe</div>
         <div class="controls">
           <button class="btn-external-unmute" onclick="sendUnmute('direct')">UNMUTE + Play</button>
         </div>
@@ -225,12 +254,18 @@
   </div>
 
   <script>
-    document.getElementById('parent-origin').textContent = window.location.origin;
+    // Определяем URL для редиректа на том же домене что и родитель (GitHub Pages)
+    var currentOrigin = window.location.origin;
+    var currentPath = window.location.pathname.substring(0, window.location.pathname.lastIndexOf('/') + 1);
+    var redirectUrl = currentOrigin + currentPath + 'redirect.html';
 
-    var BASE = 'https://s3.mds.yandex.net/playerweb-ci/tmp/vinny/test_activation/';
+    document.getElementById('parent-origin').textContent = currentOrigin;
+    document.getElementById('redirect-origin').textContent = currentOrigin;
+    document.getElementById('redirect-url').textContent = redirectUrl;
+
     var URLS = {
-      redirect: BASE + 'redirect.html',
-      direct: BASE + 'player.html?mode=direct'
+      redirect: redirectUrl,
+      direct: 'https://s3.mds.yandex.net/playerweb-ci/tmp/vinny/test_activation/player.html?mode=direct'
     };
 
     function getTime() {
@@ -260,14 +295,16 @@
     function loadIframe(panel) {
       var iframe = document.getElementById('iframe-' + panel);
       log(panel, 'Загрузка: ' + URLS[panel], 'info');
-      log(panel, 'Cross-origin: родитель=' + window.location.origin + ', iframe=s3.mds.yandex.net', 'warning');
+      if (panel === 'redirect') {
+        log(panel, 'Это CROSS-ORIGIN редирект!', 'warning');
+        log(panel, currentOrigin + ' → s3.mds.yandex.net', 'warning');
+      }
       iframe.src = URLS[panel];
     }
 
     function sendUnmute(panel) {
       var iframe = document.getElementById('iframe-' + panel);
-      log(panel, '>>> ВНЕШНЯЯ КНОПКА (cross-origin): postMessage unmute', 'external');
-      log(panel, 'User gesture НЕ передаётся в cross-origin iframe!', 'external');
+      log(panel, '>>> ВНЕШНЯЯ КНОПКА: postMessage unmute', 'external');
       iframe.contentWindow.postMessage({ command: 'unmute' }, '*');
     }
 
