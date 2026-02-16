@@ -1,0 +1,284 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>User Activation Test: Cross-Origin</title>
+  <style>
+    * { box-sizing: border-box; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
+      margin: 0;
+      padding: 20px;
+      background: #1a1a2e;
+      color: #eee;
+    }
+    h1 { text-align: center; color: #00d4ff; margin-bottom: 10px; }
+    .description {
+      text-align: center;
+      color: #888;
+      margin-bottom: 20px;
+      font-size: 14px;
+      line-height: 1.6;
+    }
+    .origin-info {
+      text-align: center;
+      background: #2d1b4e;
+      border: 1px solid #e64980;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 25px;
+      font-size: 12px;
+    }
+    .origin-info strong { color: #e64980; }
+    .origin-info code {
+      background: #0d1b2a;
+      padding: 2px 6px;
+      border-radius: 4px;
+      color: #00d4ff;
+    }
+    .container {
+      display: flex;
+      gap: 20px;
+      max-width: 1600px;
+      margin: 0 auto;
+      flex-wrap: wrap;
+    }
+    .panel {
+      flex: 1;
+      min-width: 500px;
+      background: #16213e;
+      border-radius: 12px;
+      padding: 20px;
+      border: 1px solid #0f3460;
+    }
+    .panel h2 {
+      margin: 0 0 15px 0;
+      font-size: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .panel.redirect h2 { color: #ff6b6b; }
+    .panel.direct h2 { color: #51cf66; }
+    .status-dot { width: 12px; height: 12px; border-radius: 50%; }
+    .panel.redirect .status-dot { background: #ff6b6b; }
+    .panel.direct .status-dot { background: #51cf66; }
+    .url-info {
+      font-size: 12px;
+      color: #888;
+      margin-bottom: 15px;
+      word-break: break-all;
+      background: #0d1b2a;
+      padding: 10px;
+      border-radius: 6px;
+    }
+    .iframe-wrapper {
+      position: relative;
+      width: 100%;
+      height: 420px;
+      background: #000;
+      border-radius: 8px;
+      overflow: hidden;
+      margin-bottom: 15px;
+    }
+    iframe { width: 100%; height: 100%; border: none; }
+    .log-container {
+      background: #0d1b2a;
+      border-radius: 8px;
+      padding: 12px;
+      height: 300px;
+      overflow-y: auto;
+      font-family: 'Monaco', 'Menlo', monospace;
+      font-size: 12px;
+    }
+    .log-entry {
+      padding: 5px 0;
+      border-bottom: 1px solid #1a1a2e;
+      display: flex;
+      gap: 10px;
+    }
+    .log-time { color: #666; flex-shrink: 0; }
+    .log-message { color: #ddd; }
+    .log-message.success { color: #51cf66; }
+    .log-message.warning { color: #fcc419; }
+    .log-message.error { color: #ff6b6b; }
+    .log-message.info { color: #74c0fc; }
+    .log-message.external { color: #e64980; font-weight: bold; }
+    .controls {
+      display: flex;
+      gap: 10px;
+      margin-bottom: 15px;
+      flex-wrap: wrap;
+    }
+    button {
+      padding: 10px 18px;
+      border: none;
+      border-radius: 6px;
+      cursor: pointer;
+      font-size: 13px;
+      font-weight: 600;
+      transition: transform 0.1s, box-shadow 0.1s;
+    }
+    button:hover {
+      transform: translateY(-1px);
+      box-shadow: 0 4px 12px rgba(0,0,0,0.3);
+    }
+    .btn-load { background: #4c6ef5; color: white; }
+    .btn-clear { background: #495057; color: white; }
+    .btn-external-unmute {
+      background: #e64980;
+      color: white;
+      position: relative;
+    }
+    .btn-external-unmute::after {
+      content: "CROSS-ORIGIN";
+      position: absolute;
+      top: -8px;
+      right: -8px;
+      background: #fcc419;
+      color: #000;
+      font-size: 8px;
+      padding: 2px 5px;
+      border-radius: 4px;
+      font-weight: bold;
+    }
+    .section-label {
+      font-size: 11px;
+      color: #666;
+      margin-bottom: 8px;
+      text-transform: uppercase;
+      letter-spacing: 1px;
+    }
+    .external-controls {
+      background: #2d1b4e;
+      border: 2px dashed #e64980;
+      border-radius: 8px;
+      padding: 12px;
+      margin-bottom: 15px;
+    }
+    .external-controls .section-label { color: #e64980; }
+  </style>
+</head>
+<body>
+  <h1>User Activation Test: Cross-Origin</h1>
+  <p class="description">
+    Тест передачи User Activation через postMessage в cross-origin iframe<br>
+    <strong>Розовые кнопки</strong> — СНАРУЖИ iframe (жест НЕ должен передаваться в cross-origin)
+  </p>
+
+  <div class="origin-info">
+    <strong>Родитель:</strong> <code id="parent-origin"></code><br>
+    <strong>iframe:</strong> <code>s3.mds.yandex.net</code> (cross-origin)
+  </div>
+
+  <div class="container">
+    <div class="panel redirect">
+      <h2><span class="status-dot"></span> С редиректом</h2>
+      <div class="url-info">
+        <strong>src:</strong> redirect.html → player.html?mode=redirect
+      </div>
+
+      <div class="section-label">Управление iframe</div>
+      <div class="controls">
+        <button class="btn-load" onclick="loadIframe('redirect')">Загрузить iframe</button>
+        <button class="btn-clear" onclick="clearLog('redirect')">Очистить лог</button>
+      </div>
+
+      <div class="external-controls">
+        <div class="section-label">Кнопка СНАРУЖИ iframe (cross-origin postMessage)</div>
+        <div class="controls">
+          <button class="btn-external-unmute" onclick="sendUnmute('redirect')">UNMUTE + Play</button>
+        </div>
+      </div>
+
+      <div class="iframe-wrapper">
+        <iframe id="iframe-redirect" allow="autoplay; encrypted-media; fullscreen"></iframe>
+      </div>
+      <div class="log-container" id="log-redirect"></div>
+    </div>
+
+    <div class="panel direct">
+      <h2><span class="status-dot"></span> Без редиректа</h2>
+      <div class="url-info">
+        <strong>src:</strong> player.html?mode=direct (напрямую)
+      </div>
+
+      <div class="section-label">Управление iframe</div>
+      <div class="controls">
+        <button class="btn-load" onclick="loadIframe('direct')">Загрузить iframe</button>
+        <button class="btn-clear" onclick="clearLog('direct')">Очистить лог</button>
+      </div>
+
+      <div class="external-controls">
+        <div class="section-label">Кнопка СНАРУЖИ iframe (cross-origin postMessage)</div>
+        <div class="controls">
+          <button class="btn-external-unmute" onclick="sendUnmute('direct')">UNMUTE + Play</button>
+        </div>
+      </div>
+
+      <div class="iframe-wrapper">
+        <iframe id="iframe-direct" allow="autoplay; encrypted-media; fullscreen"></iframe>
+      </div>
+      <div class="log-container" id="log-direct"></div>
+    </div>
+  </div>
+
+  <script>
+    document.getElementById('parent-origin').textContent = window.location.origin;
+
+    var BASE = 'https://s3.mds.yandex.net/playerweb-ci/tmp/vinny/test_activation/';
+    var URLS = {
+      redirect: BASE + 'redirect.html',
+      direct: BASE + 'player.html?mode=direct'
+    };
+
+    function getTime() {
+      return new Date().toLocaleTimeString('ru-RU', {
+        hour: '2-digit',
+        minute: '2-digit',
+        second: '2-digit',
+        fractionalSecondDigits: 3
+      });
+    }
+
+    function log(panel, message, type) {
+      var container = document.getElementById('log-' + panel);
+      var entry = document.createElement('div');
+      entry.className = 'log-entry';
+      entry.innerHTML =
+        '<span class="log-time">' + getTime() + '</span>' +
+        '<span class="log-message ' + (type || '') + '">' + message + '</span>';
+      container.appendChild(entry);
+      container.scrollTop = container.scrollHeight;
+    }
+
+    function clearLog(panel) {
+      document.getElementById('log-' + panel).innerHTML = '';
+    }
+
+    function loadIframe(panel) {
+      var iframe = document.getElementById('iframe-' + panel);
+      log(panel, 'Загрузка: ' + URLS[panel], 'info');
+      log(panel, 'Cross-origin: родитель=' + window.location.origin + ', iframe=s3.mds.yandex.net', 'warning');
+      iframe.src = URLS[panel];
+    }
+
+    function sendUnmute(panel) {
+      var iframe = document.getElementById('iframe-' + panel);
+      log(panel, '>>> ВНЕШНЯЯ КНОПКА (cross-origin): postMessage unmute', 'external');
+      log(panel, 'User gesture НЕ передаётся в cross-origin iframe!', 'external');
+      iframe.contentWindow.postMessage({ command: 'unmute' }, '*');
+    }
+
+    window.addEventListener('message', function(event) {
+      if (event.data && event.data.type === 'activation-log') {
+        log(event.data.panel, event.data.message, event.data.level || '');
+      }
+    });
+
+    log('redirect', 'Готов. Нажмите "Загрузить iframe"', 'info');
+    log('direct', 'Готов. Нажмите "Загрузить iframe"', 'info');
+  </script>
+</body>
+</html>
